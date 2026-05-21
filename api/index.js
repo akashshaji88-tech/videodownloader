@@ -319,7 +319,10 @@ app.post("/api/info", authenticate, async (req, res) => {
     });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Failed to fetch video info" });
+    res.status(500).json({ 
+      error: "Failed to fetch video info: " + err.message,
+      stack: err.stack 
+    });
   }
 });
 
@@ -348,7 +351,10 @@ app.post("/api/download", authenticate, async (req, res) => {
     });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Download failed" });
+    res.status(500).json({ 
+      error: "Download failed: " + err.message,
+      stack: err.stack 
+    });
   }
 });
 
