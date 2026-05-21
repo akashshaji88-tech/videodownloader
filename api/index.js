@@ -296,7 +296,8 @@ app.post("/api/info", authenticate, async (req, res) => {
   if (!url) return res.status(400).json({ error: "No URL provided" });
 
   try {
-    const metadata = await ytDlp.getVideoInfo(url, [
+    const metadata = await ytDlp.getVideoInfo([
+      url,
       "--no-playlist",
       "--js-runtimes", "node:" + process.execPath,
       "--extractor-args", "youtube:player_client=android,web_embedded"
@@ -346,7 +347,8 @@ app.post("/api/download", authenticate, async (req, res) => {
   const filepath = path.join(DOWNLOAD_FOLDER, filename);
 
   try {
-    const metadata = await ytDlp.getVideoInfo(url, [
+    const metadata = await ytDlp.getVideoInfo([
+      url,
       "--no-playlist",
       "--js-runtimes", "node:" + process.execPath,
       "--extractor-args", "youtube:player_client=android,web_embedded"
