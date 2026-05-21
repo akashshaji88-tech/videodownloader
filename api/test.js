@@ -2,9 +2,7 @@ const app = require("./index.js");
 
 module.exports = (req, res) => {
   try {
-    // Override url to test the /api/auth/me endpoint
-    req.url = "/api/auth/me";
-    
+    // Do NOT override req.url, just forward the request as is
     app(req, res);
   } catch (err) {
     res.status(500).json({
