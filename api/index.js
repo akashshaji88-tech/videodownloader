@@ -5,6 +5,14 @@ const path = require("path");
 const fs = require("fs");
 const crypto = require("crypto");
 
+// Add Node bin directory to PATH so yt-dlp can locate the node executable as a JS runtime
+const nodeDir = path.dirname(process.execPath);
+if (process.env.PATH) {
+  process.env.PATH = nodeDir + (process.platform === "win32" ? ";" : ":") + process.env.PATH;
+} else {
+  process.env.PATH = nodeDir;
+}
+
 const app = express();
 const PORT = 3000;
 
@@ -288,7 +296,10 @@ app.post("/api/info", authenticate, async (req, res) => {
   if (!url) return res.status(400).json({ error: "No URL provided" });
 
   try {
-    const metadata = await ytDlp.getVideoInfo(url);
+    const metadata = await ytDlp.getVideoInfo(url, [
+      "--no-playlist",
+      "--extractor-args", "youtube:player_client=android,web_embedded"
+    ]);
     const formats = metadata.formats
       .filter((f) => f.vcodec !== "none" && f.resolution)
       .map((f) => ({
@@ -334,7 +345,10 @@ app.post("/api/download", authenticate, async (req, res) => {
   const filepath = path.join(DOWNLOAD_FOLDER, filename);
 
   try {
-    const metadata = await ytDlp.getVideoInfo(url);
+    const metadata = await ytDlp.getVideoInfo(url, [
+      "--no-playlist",
+      "--extractor-args", "youtube:player_client=android,web_embedded"
+    ]);
     const title = metadata.title.replace(/[^a-z0-9 \-_]/gi, "_");
 
     await ytDlp.execPromise([
@@ -343,6 +357,7 @@ app.post("/api/download", authenticate, async (req, res) => {
       "--merge-output-format", "mp4",
       "-o", filepath,
       "--no-playlist",
+      "--extractor-args", "youtube:player_client=android,web_embedded",
     ]);
 
     res.download(filepath, `${title}.mp4`, (err) => {
