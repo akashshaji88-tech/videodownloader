@@ -298,6 +298,7 @@ app.post("/api/info", authenticate, async (req, res) => {
   try {
     const metadata = await ytDlp.getVideoInfo(url, [
       "--no-playlist",
+      "--js-runtimes", "node:" + process.execPath,
       "--extractor-args", "youtube:player_client=android,web_embedded"
     ]);
     const formats = metadata.formats
@@ -347,6 +348,7 @@ app.post("/api/download", authenticate, async (req, res) => {
   try {
     const metadata = await ytDlp.getVideoInfo(url, [
       "--no-playlist",
+      "--js-runtimes", "node:" + process.execPath,
       "--extractor-args", "youtube:player_client=android,web_embedded"
     ]);
     const title = metadata.title.replace(/[^a-z0-9 \-_]/gi, "_");
@@ -357,6 +359,7 @@ app.post("/api/download", authenticate, async (req, res) => {
       "--merge-output-format", "mp4",
       "-o", filepath,
       "--no-playlist",
+      "--js-runtimes", "node:" + process.execPath,
       "--extractor-args", "youtube:player_client=android,web_embedded",
     ]);
 
