@@ -1,20 +1,7 @@
-const YTDlpWrapModule = require("yt-dlp-wrap");
-const YTDlpWrap = YTDlpWrapModule.default || YTDlpWrapModule;
+const fs = require("fs");
+const path = require("path");
 
-let indexLoaded = false;
-let indexError = null;
-let indexExportType = null;
-
-try {
-  const index = require("./index.js");
-  indexLoaded = true;
-  indexExportType = typeof index;
-} catch (err) {
-  indexError = {
-    message: err.message,
-    stack: err.stack
-  };
-}
+const YT_DLP_PATH = path.join(__dirname, "..", "yt-dlp-linux");
 
 module.exports = (req, res) => {
   res.json({
@@ -22,8 +9,9 @@ module.exports = (req, res) => {
     vercel: !!process.env.VERCEL,
     nodeVersion: process.version,
     time: new Date().toISOString(),
-    indexLoaded,
-    indexExportType,
-    indexError
+    binaryExists: fs.existsSync(YT_DLP_PATH),
+    binaryPath: YT_DLP_PATH,
+    dirname: __dirname,
+    cwd: process.cwd()
   });
 };
