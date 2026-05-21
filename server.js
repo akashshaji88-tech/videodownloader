@@ -1,6 +1,5 @@
 const express = require("express");
 const YTDlpWrap = require("yt-dlp-wrap").default;
-const { v4: uuidv4 } = require("uuid");
 const path = require("path");
 const fs = require("fs");
 const crypto = require("crypto");
@@ -15,7 +14,6 @@ const DATA_FOLDER = IS_VERCEL ? "/tmp" : path.join(__dirname, "data");
 const DOWNLOAD_FOLDER = IS_VERCEL ? "/tmp" : path.join(__dirname, "downloads");
 const USERS_FILE = path.join(DATA_FOLDER, "users.json");
 const LOGINS_FILE = path.join(DATA_FOLDER, "logins.json");
-const CONFIG_FILE = IS_VERCEL ? "/tmp/config.json" : path.join(__dirname, "config.json");
 
 // Select correct binary: yt-dlp-linux for Vercel, ./yt-dlp (which maps to yt-dlp.exe) for local Windows
 const YT_DLP_PATH = IS_VERCEL ? path.join(__dirname, "yt-dlp-linux") : "./yt-dlp";
@@ -42,8 +40,9 @@ if (!IS_VERCEL) {
   }
 }
 
-// Load config
+// Load config (read-only, fallback to admin2026)
 let adminPassword = "admin2026";
+const CONFIG_FILE = path.join(__dirname, "config.json");
 if (fs.existsSync(CONFIG_FILE)) {
   try {
     const config = JSON.parse(fs.readFileSync(CONFIG_FILE, "utf8"));
@@ -52,12 +51,6 @@ if (fs.existsSync(CONFIG_FILE)) {
     }
   } catch (err) {
     console.error("Failed to read config:", err);
-  }
-} else {
-  try {
-    fs.writeFileSync(CONFIG_FILE, JSON.stringify({ adminPassword }, null, 2));
-  } catch (err) {
-    console.error("Failed to write config:", err);
   }
 }
 
@@ -128,7 +121,7 @@ function saveLogins(logins) {
 function addLoginLog(username, ip, status) {
   const logs = loadLogins();
   logs.push({
-    id: uuidv4(),
+    id: crypto.randomUUID(),
     username,
     timestamp: new Date().toISOString(),
     ip,
@@ -178,7 +171,7 @@ app.post("/api/auth/register", (req, res) => {
 
   const { salt, hash } = hashPassword(password);
   const newUser = {
-    id: uuidv4(),
+    id: crypto.randomUUID(),
     username: cleanUsername,
     passwordHash: hash,
     salt,
@@ -215,7 +208,7 @@ app.post("/api/auth/login", (req, res) => {
 
   // Success
   addLoginLog(user.username, ip, "success");
-  const token = uuidv4();
+  const token = crypto.randomUUID();
   activeSessions.set(token, { username: user.username, isAdmin: false });
 
   res.cookie("session_token", token, { httpOnly: true, maxAge: 24 * 60 * 60 * 1000 }); // 24 hours
@@ -255,7 +248,7 @@ app.post("/api/admin/verify", (req, res) => {
   }
 
   addLoginLog("admin", ip, "admin_success");
-  const token = uuidv4();
+  const token = crypto.randomUUID();
   activeSessions.set(token, { username: "admin", isAdmin: true });
 
   res.cookie("admin_token", token, { httpOnly: true, maxAge: 2 * 60 * 60 * 1000 }); // 2 hours
@@ -331,7 +324,7 @@ app.post("/api/download", authenticate, async (req, res) => {
   const { url, format_id } = req.body;
   if (!url) return res.status(400).json({ error: "No URL provided" });
 
-  const filename = `${uuidv4()}.mp4`;
+  const filename = `${crypto.randomUUID()}.mp4`;
   const filepath = path.join(DOWNLOAD_FOLDER, filename);
 
   try {
