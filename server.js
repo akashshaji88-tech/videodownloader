@@ -7,15 +7,25 @@ const crypto = require("crypto");
 
 const app = express();
 const PORT = 3000;
-const DOWNLOAD_FOLDER = path.join(__dirname, "downloads");
-const USERS_FILE = path.join(__dirname, "data", "users.json");
-const LOGINS_FILE = path.join(__dirname, "data", "logins.json");
-const CONFIG_FILE = path.join(__dirname, "config.json");
 
-// Ensure data folder exists
-const DATA_FOLDER = path.join(__dirname, "data");
-if (!fs.existsSync(DATA_FOLDER)) {
-  fs.mkdirSync(DATA_FOLDER);
+const IS_VERCEL = !!process.env.VERCEL;
+
+// Resolve directories dynamically (use writable /tmp folder on Vercel)
+const DATA_FOLDER = IS_VERCEL ? "/tmp" : path.join(__dirname, "data");
+const DOWNLOAD_FOLDER = IS_VERCEL ? "/tmp" : path.join(__dirname, "downloads");
+const USERS_FILE = path.join(DATA_FOLDER, "users.json");
+const LOGINS_FILE = path.join(DATA_FOLDER, "logins.json");
+const CONFIG_FILE = IS_VERCEL ? "/tmp/config.json" : path.join(__dirname, "config.json");
+const YT_DLP_PATH = IS_VERCEL ? "/tmp/yt-dlp" : "./yt-dlp";
+
+// Ensure folders exist locally
+if (!IS_VERCEL) {
+  if (!fs.existsSync(DATA_FOLDER)) {
+    fs.mkdirSync(DATA_FOLDER);
+  }
+  if (!fs.existsSync(DOWNLOAD_FOLDER)) {
+    fs.mkdirSync(DOWNLOAD_FOLDER);
+  }
 }
 
 // Load config
@@ -30,17 +40,30 @@ if (fs.existsSync(CONFIG_FILE)) {
     console.error("Failed to read config:", err);
   }
 } else {
-  fs.writeFileSync(CONFIG_FILE, JSON.stringify({ adminPassword }, null, 2));
+  try {
+    fs.writeFileSync(CONFIG_FILE, JSON.stringify({ adminPassword }, null, 2));
+  } catch (err) {
+    console.error("Failed to write config:", err);
+  }
 }
 
 app.use(express.json());
 app.use(express.static("public"));
 
-if (!fs.existsSync(DOWNLOAD_FOLDER)) {
-  fs.mkdirSync(DOWNLOAD_FOLDER);
+// Dynamic downloader helper for yt-dlp binary (runs Linux yt-dlp on Vercel)
+async function ensureYtDlp() {
+  if (IS_VERCEL && !fs.existsSync(YT_DLP_PATH)) {
+    console.log("Downloading yt-dlp binary for Linux environment on Vercel...");
+    try {
+      await YTDlpWrap.downloadFromGithub(YT_DLP_PATH);
+      fs.chmodSync(YT_DLP_PATH, "755");
+      console.log("yt-dlp binary downloaded successfully.");
+    } catch (err) {
+      console.error("Error downloading yt-dlp:", err);
+      throw err;
+    }
+  }
 }
-
-const ytDlp = new YTDlpWrap("./yt-dlp");
 
 // In-memory sessions storage (token -> { username, isAdmin })
 const activeSessions = new Map();
@@ -77,7 +100,11 @@ function loadUsers() {
 }
 
 function saveUsers(users) {
-  fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
+  try {
+    fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
+  } catch (err) {
+    console.error("Error saving users:", err);
+  }
 }
 
 function loadLogins() {
@@ -90,7 +117,11 @@ function loadLogins() {
 }
 
 function saveLogins(logins) {
-  fs.writeFileSync(LOGINS_FILE, JSON.stringify(logins, null, 2));
+  try {
+    fs.writeFileSync(LOGINS_FILE, JSON.stringify(logins, null, 2));
+  } catch (err) {
+    console.error("Error saving logins:", err);
+  }
 }
 
 function addLoginLog(username, ip, status) {
@@ -260,6 +291,8 @@ app.post("/api/info", authenticate, async (req, res) => {
   if (!url) return res.status(400).json({ error: "No URL provided" });
 
   try {
+    await ensureYtDlp();
+    const ytDlp = new YTDlpWrap(YT_DLP_PATH);
     const metadata = await ytDlp.getVideoInfo(url);
     const formats = metadata.formats
       .filter((f) => f.vcodec !== "none" && f.resolution)
@@ -303,6 +336,8 @@ app.post("/api/download", authenticate, async (req, res) => {
   const filepath = path.join(DOWNLOAD_FOLDER, filename);
 
   try {
+    await ensureYtDlp();
+    const ytDlp = new YTDlpWrap(YT_DLP_PATH);
     const metadata = await ytDlp.getVideoInfo(url);
     const title = metadata.title.replace(/[^a-z0-9 \-_]/gi, "_");
 
@@ -331,6 +366,10 @@ function formatDuration(seconds) {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-app.listen(PORT, () => {
-  console.log(`✅ Server running at http://localhost:${PORT}`);
-});
+if (!IS_VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`✅ Server running at http://localhost:${PORT}`);
+  });
+}
+
+module.exports = app;
