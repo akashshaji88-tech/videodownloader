@@ -1,5 +1,6 @@
 const express = require("express");
-const YTDlpWrap = require("yt-dlp-wrap").default;
+const YTDlpWrapModule = require("yt-dlp-wrap");
+const YTDlpWrap = YTDlpWrapModule.default || YTDlpWrapModule;
 const path = require("path");
 const fs = require("fs");
 const crypto = require("crypto");
@@ -29,16 +30,12 @@ if (!IS_VERCEL) {
     fs.mkdirSync(DOWNLOAD_FOLDER);
   }
 } else {
-  // Ensure executable permissions on Vercel Linux container
-  try {
-    if (fs.existsSync(YT_DLP_PATH)) {
-      fs.chmodSync(YT_DLP_PATH, "755");
-      console.log("✅ Successfully set executable permissions on yt-dlp-linux");
-    } else {
-      console.warn("⚠️ Warning: yt-dlp-linux binary not found in directory.");
-    }
-  } catch (err) {
-    console.error("Failed to chmod yt-dlp-linux:", err);
+  // On Vercel, log if binary exists but do not chmod (it is in a read-only filesystem
+  // and has executable permissions from git).
+  if (fs.existsSync(YT_DLP_PATH)) {
+    console.log("✅ yt-dlp-linux binary found in directory");
+  } else {
+    console.warn("⚠️ Warning: yt-dlp-linux binary not found in directory.");
   }
 }
 
@@ -57,6 +54,10 @@ if (fs.existsSync(CONFIG_FILE)) {
 }
 
 app.use(express.json());
+app.use((req, res, next) => {
+  console.log(`[REQUEST] Method: ${req.method}, URL: ${req.url}, OriginalURL: ${req.originalUrl}, Path: ${req.path}`);
+  next();
+});
 app.use(express.static("public"));
 
 const ytDlp = new YTDlpWrap(YT_DLP_PATH);
