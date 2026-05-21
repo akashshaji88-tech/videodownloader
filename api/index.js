@@ -10,13 +10,15 @@ const PORT = 3000;
 const IS_VERCEL = !!process.env.VERCEL;
 
 // Resolve directories dynamically (use writable /tmp folder on Vercel)
-const DATA_FOLDER = IS_VERCEL ? "/tmp" : path.join(__dirname, "data");
-const DOWNLOAD_FOLDER = IS_VERCEL ? "/tmp" : path.join(__dirname, "downloads");
+const DATA_FOLDER = IS_VERCEL ? "/tmp" : path.join(__dirname, "..", "data");
+const DOWNLOAD_FOLDER = IS_VERCEL ? "/tmp" : path.join(__dirname, "..", "downloads");
 const USERS_FILE = path.join(DATA_FOLDER, "users.json");
 const LOGINS_FILE = path.join(DATA_FOLDER, "logins.json");
 
 // Select correct binary: yt-dlp-linux for Vercel, ./yt-dlp (which maps to yt-dlp.exe) for local Windows
-const YT_DLP_PATH = IS_VERCEL ? path.join(__dirname, "yt-dlp-linux") : "./yt-dlp";
+const YT_DLP_PATH = IS_VERCEL 
+  ? path.join(__dirname, "..", "yt-dlp-linux") 
+  : path.join(__dirname, "..", "yt-dlp");
 
 // Ensure folders exist locally
 if (!IS_VERCEL) {
@@ -42,7 +44,7 @@ if (!IS_VERCEL) {
 
 // Load config (read-only, fallback to admin2026)
 let adminPassword = "admin2026";
-const CONFIG_FILE = path.join(__dirname, "config.json");
+const CONFIG_FILE = path.join(__dirname, "..", "config.json");
 if (fs.existsSync(CONFIG_FILE)) {
   try {
     const config = JSON.parse(fs.readFileSync(CONFIG_FILE, "utf8"));
@@ -277,7 +279,7 @@ app.post("/api/admin/logout", (req, res) => {
 
 // Protected Downloader APIs
 app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
+  res.sendFile(path.join(__dirname, "..", "public", "index.html"));
 });
 
 app.post("/api/info", authenticate, async (req, res) => {
