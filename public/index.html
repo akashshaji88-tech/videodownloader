@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>YT Downloader - Premium Video Downloader</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="container">
+    
+    <!-- User Authentication Header Bar -->
+    <div id="userBar" class="user-bar hidden">
+      <div class="user-info">
+        <div id="userAvatar" class="user-avatar">U</div>
+        <span>Welcome, <strong id="currentUsername">User</strong></span>
+      </div>
+      <div>
+        <a href="admin.html">Admin Panel</a>
+        <button onclick="handleLogout()" class="logout-btn">Sign Out</button>
+      </div>
+    </div>
+
+    <!-- Downloader App UI -->
+    <div id="appContainer">
+      <div class="header">
+        <span class="logo">▶</span>
+        <h1>YouTube Downloader</h1>
+      </div>
+
+      <div class="card">
+        <div class="input-row">
+          <input type="text" id="urlInput" placeholder="Paste YouTube URL here..." />
+          <button id="fetchBtn" onclick="fetchInfo()">Fetch Video</button>
+        </div>
+
+        <p id="status"></p>
+
+        <!-- Video metadata display -->
+        <div id="videoInfo" class="hidden card video-card" style="margin-top: 20px; margin-bottom: 0; background: rgba(0,0,0,0.15); padding: 16px;">
+          <img id="thumbnail" src="" alt="thumbnail" />
+          <div class="meta">
+            <h2 id="videoTitle"></h2>
+            <p id="videoDuration"></p>
+            <p id="videoUploader"></p>
+          </div>
+        </div>
+
+        <!-- Format Selector -->
+        <div id="formatSection" class="hidden" style="margin-top: 20px;">
+          <label style="font-weight: 500; margin-bottom: 8px; display: block;">Select Quality:</label>
+          <select id="formatSelect"></select>
+          <button id="downloadBtn" onclick="downloadVideo()">⬇ Download MP4</button>
+        </div>
+
+        <!-- Download Progress -->
+        <div id="progressSection" class="hidden">
+          <div class="progress-bar">
+            <div id="progressFill"></div>
+          </div>
+          <p id="progressText" style="font-size: 13px; text-align: center; color: var(--text-secondary);">Starting download...</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  
+  <script src="script.js"></script>
+</body>
+</html>

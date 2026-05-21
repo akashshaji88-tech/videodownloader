@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Register - YT Downloader</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="card auth-card">
+      <div class="auth-header">
+        <div class="logo" style="margin: 0 auto 16px;">▶</div>
+        <h2>Create Account</h2>
+        <p>Register to unlock video downloads</p>
+      </div>
+
+      <form id="registerForm" onsubmit="handleRegister(event)">
+        <div class="form-group">
+          <label for="username">Username</label>
+          <input type="text" id="username" placeholder="Min. 3 characters" required autofocus />
+        </div>
+
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input type="password" id="password" placeholder="Min. 6 characters" required />
+        </div>
+
+        <div class="form-group">
+          <label for="confirmPassword">Confirm Password</label>
+          <input type="password" id="confirmPassword" placeholder="Repeat your password" required />
+        </div>
+
+        <button type="submit" id="submitBtn" style="width: 100%; margin-top: 10px;">Create Account</button>
+      </form>
+
+      <p id="status" style="margin-top: 15px;"></p>
+
+      <div class="auth-footer">
+        Already have an account? <a href="login.html">Sign in here</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    async function handleRegister(event) {
+      event.preventDefault();
+      const username = document.getElementById("username").value.trim();
+      const password = document.getElementById("password").value;
+      const confirmPassword = document.getElementById("confirmPassword").value;
+      const status = document.getElementById("status");
+      const submitBtn = document.getElementById("submitBtn");
+
+      if (username.length < 3) {
+        status.textContent = "❌ Username must be at least 3 characters.";
+        status.style.color = "var(--error)";
+        return;
+      }
+
+      if (password.length < 6) {
+        status.textContent = "❌ Password must be at least 6 characters.";
+        status.style.color = "var(--error)";
+        return;
+      }
+
+      if (password !== confirmPassword) {
+        status.textContent = "❌ Passwords do not match.";
+        status.style.color = "var(--error)";
+        return;
+      }
+
+      status.textContent = "⏳ Creating account...";
+      status.style.color = "var(--text-secondary)";
+      submitBtn.disabled = true;
+
+      try {
+        const res = await fetch("/api/auth/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, password })
+        });
+
+        const data = await res.json();
+        if (res.ok && data.success) {
+          status.textContent = "✅ Registered successfully! Redirecting to login...";
+          status.style.color = "var(--success)";
+          setTimeout(() => {
+            window.location.href = "login.html";
+          }, 1500);
+        } else {
+          status.textContent = "❌ " + (data.error || "Registration failed");
+          status.style.color = "var(--error)";
+          submitBtn.disabled = false;
+        }
+      } catch (err) {
+        status.textContent = "❌ Connection error. Is server running?";
+        status.style.color = "var(--error)";
+        submitBtn.disabled = false;
+      }
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Login - YT Downloader</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="card auth-card">
+      <div class="auth-header">
+        <div class="logo" style="margin: 0 auto 16px;">▶</div>
+        <h2>Welcome Back</h2>
+        <p>Sign in to download high-quality videos</p>
+      </div>
+
+      <form id="loginForm" onsubmit="handleLogin(event)">
+        <div class="form-group">
+          <label for="username">Username</label>
+          <input type="text" id="username" placeholder="Enter your username" required autofocus />
+        </div>
+
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input type="password" id="password" placeholder="Enter your password" required />
+        </div>
+
+        <button type="submit" id="submitBtn" style="width: 100%; margin-top: 10px;">Sign In</button>
+      </form>
+
+      <p id="status" style="margin-top: 15px;"></p>
+
+      <div class="auth-footer">
+        Don't have an account? <a href="register.html">Register here</a>
+        <div class="admin-link-wrapper">
+          <a href="admin.html">Access Admin Panel</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    async function handleLogin(event) {
+      event.preventDefault();
+      const username = document.getElementById("username").value.trim();
+      const password = document.getElementById("password").value;
+      const status = document.getElementById("status");
+      const submitBtn = document.getElementById("submitBtn");
+
+      if (!username || !password) {
+        status.textContent = "❌ Please fill in all fields.";
+        status.style.color = "var(--error)";
+        return;
+      }
+
+      status.textContent = "⏳ Logging in...";
+      status.style.color = "var(--text-secondary)";
+      submitBtn.disabled = true;
+
+      try {
+        const res = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, password })
+        });
+
+        const data = await res.json();
+        if (res.ok && data.success) {
+          status.textContent = "✅ Success! Redirecting...";
+          status.style.color = "var(--success)";
+          setTimeout(() => {
+            window.location.href = "index.html";
+          }, 1000);
+        } else {
+          status.textContent = "❌ " + (data.error || "Login failed");
+          status.style.color = "var(--error)";
+          submitBtn.disabled = false;
+        }
+      } catch (err) {
+        status.textContent = "❌ Connection error. Is server running?";
+        status.style.color = "var(--error)";
+        submitBtn.disabled = false;
+      }
+    }
+
+    // If already logged in, redirect to index
+    (async () => {
+      try {
+        const res = await fetch("/api/auth/me");
+        if (res.ok) {
+          window.location.href = "index.html";
+        }
+      } catch (err) {}
+    })();
+  </script>
+</body>
+</html>

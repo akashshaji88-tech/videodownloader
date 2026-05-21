@@ -1,0 +1,14 @@
+# Dependencies
+node_modules/
+
+# Local databases & configurations
+config.json
+data/*.json
+
+# Temporary downloads
+downloads/*
+!downloads/.gitkeep
+
+# OS specific files
+.DS_Store
+Thumbs.db

@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin Panel - YT Downloader</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="container admin-container">
+    
+    <!-- Admin Login Card -->
+    <div id="adminAuthCard" class="card auth-card">
+      <div class="auth-header">
+        <div class="logo btn-admin" style="margin: 0 auto 16px;">🔑</div>
+        <h2>Admin Authentication</h2>
+        <p>Enter the security password to unlock the admin dashboard</p>
+      </div>
+
+      <form id="adminLoginForm" onsubmit="handleAdminLogin(event)">
+        <div class="form-group">
+          <label for="adminPassword">Security Password</label>
+          <input type="password" id="adminPassword" placeholder="Enter security password" required autofocus />
+        </div>
+        <button type="submit" id="unlockBtn" class="btn-admin" style="width: 100%; margin-top: 10px;">Unlock Dashboard</button>
+      </form>
+      
+      <p id="authStatus" style="margin-top: 15px; text-align: center; font-size: 14px;"></p>
+      
+      <div class="auth-footer" style="margin-top: 20px;">
+        <a href="index.html">← Back to Downloader</a>
+      </div>
+    </div>
+
+    <!-- Admin Dashboard Card (Hidden initially) -->
+    <div id="adminDashboard" class="card hidden">
+      <div class="admin-header">
+        <div>
+          <h2>Admin Control Center</h2>
+          <p style="color: var(--text-secondary); font-size: 14px;">Audit logins and registered accounts</p>
+        </div>
+        <div style="display: flex; gap: 10px;">
+          <button onclick="fetchAdminLogs()" class="btn-secondary" style="padding: 10px 16px; font-size: 13px;">Refresh</button>
+          <button onclick="handleAdminLogout()" class="logout-btn" style="color: var(--error);">Lock Dashboard</button>
+        </div>
+      </div>
+
+      <!-- Stats Grid -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="value" id="statTotalUsers">0</div>
+          <div class="label">Total Users</div>
+        </div>
+        <div class="stat-card">
+          <div class="value" id="statTotalLogins">0</div>
+          <div class="label">Total Logins</div>
+        </div>
+        <div class="stat-card">
+          <div class="value" id="statFailedLogins" style="color: var(--error);">0</div>
+          <div class="label">Failed Logins</div>
+        </div>
+      </div>
+
+      <!-- Tab Selectors -->
+      <div class="tabs">
+        <div id="tabLogins" class="tab active" onclick="switchTab('logins')">Login History</div>
+        <div id="tabUsers" class="tab" onclick="switchTab('users')">Registered Users</div>
+      </div>
+
+      <!-- Login Logs Table Section -->
+      <div id="loginsSection">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+          <h3 style="font-size: 16px; font-weight: 600;">Recent Login Attempts</h3>
+          <button id="clearLogsBtn" onclick="clearLoginLogs()" class="btn-secondary" style="padding: 6px 12px; font-size: 12px; background: rgba(239, 68, 68, 0.08); border-color: rgba(239, 68, 68, 0.15); color: var(--error);">Clear All Logs</button>
+        </div>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Username</th>
+                <th>Time</th>
+                <th>IP Address</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="loginsTableBody">
+              <!-- Logs populated dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Registered Users Table Section -->
+      <div id="usersSection" class="hidden">
+        <h3 style="font-size: 16px; font-weight: 600; margin-bottom: 12px;">Registered Accounts</h3>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Username</th>
+                <th>Registration Date</th>
+              </tr>
+            </thead>
+            <tbody id="usersTableBody">
+              <!-- Users populated dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div style="margin-top: 24px; text-align: center; border-top: 1px solid var(--border-color); padding-top: 16px;">
+        <a href="index.html" style="color: var(--accent-secondary); text-decoration: none; font-weight: 500; font-size: 14px;">← Back to Video Downloader</a>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    let currentTab = "logins";
+
+    async function handleAdminLogin(event) {
+      event.preventDefault();
+      const password = document.getElementById("adminPassword").value;
+      const status = document.getElementById("authStatus");
+      const btn = document.getElementById("unlockBtn");
+
+      status.textContent = "⏳ Verifying security password...";
+      status.style.color = "var(--text-secondary)";
+      btn.disabled = true;
+
+      try {
+        const res = await fetch("/api/admin/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ password })
+        });
+
+        const data = await res.json();
+        if (res.ok && data.success) {
+          status.textContent = "✅ Dashboard Unlocked!";
+          status.style.color = "var(--success)";
+          setTimeout(() => {
+            document.getElementById("adminAuthCard").classList.add("hidden");
+            document.getElementById("adminDashboard").classList.remove("hidden");
+            fetchAdminLogs();
+          }, 800);
+        } else {
+          status.textContent = "❌ " + (data.error || "Verification failed");
+          status.style.color = "var(--error)";
+          btn.disabled = false;
+        }
+      } catch (err) {
+        status.textContent = "❌ Connection error.";
+        status.style.color = "var(--error)";
+        btn.disabled = false;
+      }
+    }
+
+    async function handleAdminLogout() {
+      try {
+        await fetch("/api/admin/logout", { method: "POST" });
+      } catch (err) {}
+      
+      // Reset forms and view states
+      document.getElementById("adminPassword").value = "";
+      document.getElementById("authStatus").textContent = "";
+      document.getElementById("unlockBtn").disabled = false;
+      document.getElementById("adminDashboard").classList.add("hidden");
+      document.getElementById("adminAuthCard").classList.remove("hidden");
+    }
+
+    async function fetchAdminLogs() {
+      try {
+        const res = await fetch("/api/admin/logs");
+        if (!res.ok) {
+          // If logs fail, it means we are unauthorized or session expired
+          handleAdminLogout();
+          return;
+        }
+
+        const data = await res.json();
+        renderStats(data);
+        renderLogins(data.logins);
+        renderUsers(data.users);
+      } catch (err) {
+        console.error("Failed to fetch logs:", err);
+      }
+    }
+
+    function renderStats(data) {
+      const totalUsers = data.users.length;
+      const totalLogins = data.logins.filter(l => l.status === "success" || l.status === "admin_success").length;
+      const failedLogins = data.logins.filter(l => l.status === "failed" || l.status === "admin_failed").length;
+
+      document.getElementById("statTotalUsers").textContent = totalUsers;
+      document.getElementById("statTotalLogins").textContent = totalLogins;
+      document.getElementById("statFailedLogins").textContent = failedLogins;
+    }
+
+    function renderLogins(logins) {
+      const body = document.getElementById("loginsTableBody");
+      body.innerHTML = "";
+
+      if (logins.length === 0) {
+        body.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--text-secondary); padding: 24px;">No login logs found</td></tr>`;
+        return;
+      }
+
+      // Show recent logins first
+      const sortedLogins = [...logins].reverse();
+
+      sortedLogins.forEach(log => {
+        const tr = document.createElement("tr");
+        
+        let statusBadge = "";
+        if (log.status === "success") {
+          statusBadge = `<span class="badge badge-success">Success</span>`;
+        } else if (log.status === "failed") {
+          statusBadge = `<span class="badge badge-failed">Failed</span>`;
+        } else if (log.status === "admin_success") {
+          statusBadge = `<span class="badge badge-admin-success">Admin Success</span>`;
+        } else if (log.status === "admin_failed") {
+          statusBadge = `<span class="badge badge-admin-failed">Admin Failed</span>`;
+        } else {
+          statusBadge = `<span class="badge badge-failed">${log.status}</span>`;
+        }
+
+        const dateStr = new Date(log.timestamp).toLocaleString();
+
+        tr.innerHTML = `
+          <td style="font-weight: 500;">${escapeHtml(log.username)}</td>
+          <td>${dateStr}</td>
+          <td><code>${escapeHtml(log.ip)}</code></td>
+          <td>${statusBadge}</td>
+        `;
+        body.appendChild(tr);
+      });
+    }
+
+    function renderUsers(users) {
+      const body = document.getElementById("usersTableBody");
+      body.innerHTML = "";
+
+      if (users.length === 0) {
+        body.innerHTML = `<tr><td colspan="2" style="text-align: center; color: var(--text-secondary); padding: 24px;">No registered users found</td></tr>`;
+        return;
+      }
+
+      const sortedUsers = [...users].reverse();
+
+      sortedUsers.forEach(user => {
+        const tr = document.createElement("tr");
+        const dateStr = new Date(user.createdAt).toLocaleString();
+        
+        tr.innerHTML = `
+          <td style="font-weight: 500;">${escapeHtml(user.username)}</td>
+          <td>${dateStr}</td>
+        `;
+        body.appendChild(tr);
+      });
+    }
+
+    async function clearLoginLogs() {
+      if (!confirm("Are you sure you want to delete all login history? This cannot be undone.")) return;
+      
+      try {
+        const res = await fetch("/api/admin/clear-logs", { method: "POST" });
+        if (res.ok) {
+          fetchAdminLogs();
+        } else {
+          alert("Failed to clear logs");
+        }
+      } catch (err) {
+        alert("Error connecting to server");
+      }
+    }
+
+    function switchTab(tabName) {
+      currentTab = tabName;
+      
+      if (tabName === "logins") {
+        document.getElementById("tabLogins").classList.add("active");
+        document.getElementById("tabUsers").classList.remove("active");
+        document.getElementById("loginsSection").classList.remove("hidden");
+        document.getElementById("usersSection").classList.add("hidden");
+      } else {
+        document.getElementById("tabLogins").classList.remove("active");
+        document.getElementById("tabUsers").classList.add("active");
+        document.getElementById("loginsSection").classList.add("hidden");
+        document.getElementById("usersSection").classList.remove("hidden");
+      }
+    }
+
+    function escapeHtml(str) {
+      if (!str) return "";
+      return str.replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+    }
+
+    // Auto check if we are already logged in to admin panel on load
+    (async () => {
+      try {
+        const res = await fetch("/api/admin/logs");
+        if (res.ok) {
+          document.getElementById("adminAuthCard").classList.add("hidden");
+          document.getElementById("adminDashboard").classList.remove("hidden");
+          fetchAdminLogs();
+        }
+      } catch (err) {}
+    })();
+  </script>
+</body>
+</html>
