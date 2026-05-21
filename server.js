@@ -16,7 +16,9 @@ const DOWNLOAD_FOLDER = IS_VERCEL ? "/tmp" : path.join(__dirname, "downloads");
 const USERS_FILE = path.join(DATA_FOLDER, "users.json");
 const LOGINS_FILE = path.join(DATA_FOLDER, "logins.json");
 const CONFIG_FILE = IS_VERCEL ? "/tmp/config.json" : path.join(__dirname, "config.json");
-const YT_DLP_PATH = IS_VERCEL ? "/tmp/yt-dlp" : "./yt-dlp";
+
+// Select correct binary: yt-dlp-linux for Vercel, ./yt-dlp (which maps to yt-dlp.exe) for local Windows
+const YT_DLP_PATH = IS_VERCEL ? path.join(__dirname, "yt-dlp-linux") : "./yt-dlp";
 
 // Ensure folders exist locally
 if (!IS_VERCEL) {
@@ -25,6 +27,18 @@ if (!IS_VERCEL) {
   }
   if (!fs.existsSync(DOWNLOAD_FOLDER)) {
     fs.mkdirSync(DOWNLOAD_FOLDER);
+  }
+} else {
+  // Ensure executable permissions on Vercel Linux container
+  try {
+    if (fs.existsSync(YT_DLP_PATH)) {
+      fs.chmodSync(YT_DLP_PATH, "755");
+      console.log("✅ Successfully set executable permissions on yt-dlp-linux");
+    } else {
+      console.warn("⚠️ Warning: yt-dlp-linux binary not found in directory.");
+    }
+  } catch (err) {
+    console.error("Failed to chmod yt-dlp-linux:", err);
   }
 }
 
@@ -50,20 +64,7 @@ if (fs.existsSync(CONFIG_FILE)) {
 app.use(express.json());
 app.use(express.static("public"));
 
-// Dynamic downloader helper for yt-dlp binary (runs Linux yt-dlp on Vercel)
-async function ensureYtDlp() {
-  if (IS_VERCEL && !fs.existsSync(YT_DLP_PATH)) {
-    console.log("Downloading yt-dlp binary for Linux environment on Vercel...");
-    try {
-      await YTDlpWrap.downloadFromGithub(YT_DLP_PATH);
-      fs.chmodSync(YT_DLP_PATH, "755");
-      console.log("yt-dlp binary downloaded successfully.");
-    } catch (err) {
-      console.error("Error downloading yt-dlp:", err);
-      throw err;
-    }
-  }
-}
+const ytDlp = new YTDlpWrap(YT_DLP_PATH);
 
 // In-memory sessions storage (token -> { username, isAdmin })
 const activeSessions = new Map();
@@ -291,8 +292,6 @@ app.post("/api/info", authenticate, async (req, res) => {
   if (!url) return res.status(400).json({ error: "No URL provided" });
 
   try {
-    await ensureYtDlp();
-    const ytDlp = new YTDlpWrap(YT_DLP_PATH);
     const metadata = await ytDlp.getVideoInfo(url);
     const formats = metadata.formats
       .filter((f) => f.vcodec !== "none" && f.resolution)
@@ -336,8 +335,6 @@ app.post("/api/download", authenticate, async (req, res) => {
   const filepath = path.join(DOWNLOAD_FOLDER, filename);
 
   try {
-    await ensureYtDlp();
-    const ytDlp = new YTDlpWrap(YT_DLP_PATH);
     const metadata = await ytDlp.getVideoInfo(url);
     const title = metadata.title.replace(/[^a-z0-9 \-_]/gi, "_");
 
