@@ -29,6 +29,18 @@ const YT_DLP_PATH = IS_VERCEL
   ? path.join(__dirname, "..", "yt-dlp-linux") 
   : path.join(__dirname, "..", "yt-dlp");
 
+// ✅ FIX: Write cookies from Vercel env variable to /tmp at startup
+if (IS_VERCEL) {
+  const cookiesB64 = process.env.YT_COOKIES_B64;
+  const cookiesDest = "/tmp/cookies.txt";
+  if (cookiesB64 && !fs.existsSync(cookiesDest)) {
+    fs.writeFileSync(cookiesDest, Buffer.from(cookiesB64, "base64").toString("utf-8"));
+    console.log("✅ cookies.txt written from env variable");
+  } else if (!cookiesB64) {
+    console.warn("⚠️ YT_COOKIES_B64 env variable not set — bot detection may occur.");
+  }
+}
+
 // Ensure folders exist locally
 if (!IS_VERCEL) {
   if (!fs.existsSync(DATA_FOLDER)) {
@@ -38,8 +50,6 @@ if (!IS_VERCEL) {
     fs.mkdirSync(DOWNLOAD_FOLDER);
   }
 } else {
-  // On Vercel, log if binary exists but do not chmod (it is in a read-only filesystem
-  // and has executable permissions from git).
   if (fs.existsSync(YT_DLP_PATH)) {
     console.log("✅ yt-dlp-linux binary found in directory");
   } else {
@@ -222,7 +232,7 @@ app.post("/api/auth/login", (req, res) => {
   const token = crypto.randomUUID();
   activeSessions.set(token, { username: user.username, isAdmin: false });
 
-  res.cookie("session_token", token, { httpOnly: true, maxAge: 24 * 60 * 60 * 1000 }); // 24 hours
+  res.cookie("session_token", token, { httpOnly: true, maxAge: 24 * 60 * 60 * 1000 });
   res.json({ success: true, username: user.username });
 });
 
@@ -262,7 +272,7 @@ app.post("/api/admin/verify", (req, res) => {
   const token = crypto.randomUUID();
   activeSessions.set(token, { username: "admin", isAdmin: true });
 
-  res.cookie("admin_token", token, { httpOnly: true, maxAge: 2 * 60 * 60 * 1000 }); // 2 hours
+  res.cookie("admin_token", token, { httpOnly: true, maxAge: 2 * 60 * 60 * 1000 });
   res.json({ success: true });
 });
 
@@ -299,6 +309,7 @@ app.post("/api/info", authenticate, async (req, res) => {
     const metadata = await ytDlp.getVideoInfo([
       url,
       "--no-playlist",
+      "--cookies", "/tmp/cookies.txt",
       "--js-runtimes", "node:" + process.execPath,
       "--extractor-args", "youtube:player_client=android,web_embedded"
     ]);
@@ -350,6 +361,7 @@ app.post("/api/download", authenticate, async (req, res) => {
     const metadata = await ytDlp.getVideoInfo([
       url,
       "--no-playlist",
+      "--cookies", "/tmp/cookies.txt",
       "--js-runtimes", "node:" + process.execPath,
       "--extractor-args", "youtube:player_client=android,web_embedded"
     ]);
@@ -361,6 +373,7 @@ app.post("/api/download", authenticate, async (req, res) => {
       "--merge-output-format", "mp4",
       "-o", filepath,
       "--no-playlist",
+      "--cookies", "/tmp/cookies.txt",
       "--js-runtimes", "node:" + process.execPath,
       "--extractor-args", "youtube:player_client=android,web_embedded",
     ]);
